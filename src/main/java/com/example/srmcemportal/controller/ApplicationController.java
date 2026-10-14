@@ -3,9 +3,14 @@ package com.example.srmcemportal.controller;
 import com.example.srmcemportal.entity.Application;
 import com.example.srmcemportal.entity.ApplicationStatus;
 import com.example.srmcemportal.service.ApplicationService;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -73,5 +78,19 @@ public class ApplicationController {
 
         return applicationService.getMyJobApplications(email);
     }
+    @GetMapping("/{applicationId}/resume")
+    public ResponseEntity<Resource> downloadApplicantResume(
+            @PathVariable Long applicationId,
+            Authentication authentication) throws IOException {
 
+        Resource resume = applicationService.downloadApplicantResume(
+                applicationId, authentication.getName());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"resume.pdf\"")
+                .body(resume);
+    }
 }

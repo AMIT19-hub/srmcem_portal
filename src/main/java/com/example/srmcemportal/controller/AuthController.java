@@ -1,7 +1,6 @@
 package com.example.srmcemportal.controller;
 
-import com.example.srmcemportal.dto.LoginRequest;
-import com.example.srmcemportal.dto.RegisterRequest;
+import com.example.srmcemportal.dto.*;
 import com.example.srmcemportal.service.AuthService;
 import jakarta.validation.Valid;
 import org.apache.tomcat.util.net.openssl.ciphers.Authentication;
@@ -20,21 +19,55 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
 
-        String result = authService.register(request);
-        if (result.equals("Email already registered") || result.equals("Admin registration not allowed")) {
-            return ResponseEntity.badRequest().body(result);
+        try {
+            return ResponseEntity.ok(authService.register(request));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
-        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request) {
+        try {
+            String result = authService.verifyRegistrationOtp(
+                    request.getEmail(),
+                    request.getOtp()
+            );
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
-        String result = authService.login(request);
-
-        if (result.equals("Invalid email or password")) {
-            return ResponseEntity.badRequest().body(result);
+        try {
+            return ResponseEntity.ok(authService.login(request));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
 
-        return ResponseEntity.ok(result);
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        try {
+            return ResponseEntity.ok(
+                    authService.forgotPassword(request));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            return ResponseEntity.ok(
+                    authService.resetPassword(request));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

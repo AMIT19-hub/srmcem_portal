@@ -1,6 +1,7 @@
 package com.example.srmcemportal.service;
 
 import com.example.srmcemportal.entity.Job;
+import com.example.srmcemportal.entity.Role;
 import com.example.srmcemportal.entity.User;
 import com.example.srmcemportal.repository.JobRepository;
 import com.example.srmcemportal.repository.UserRepository;
@@ -25,6 +26,10 @@ public class JobService {
         User recruiter = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Recruiter not found"));
 
+        if (recruiter.getRole() != Role.RECRUITER) {
+            throw new RuntimeException("Only recruiters can create jobs");
+        }
+
         job.setRecruiter(recruiter);
         return jobRepository.save(job);
     }
@@ -35,7 +40,7 @@ public class JobService {
 
     public List<Job> getMyJobs(String email) {
         User recruiter = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("recruiter not fount"));
+                .orElseThrow(() -> new RuntimeException("recruiter not found"));
 
         return jobRepository.findByRecruiter(recruiter);
     }
@@ -51,6 +56,9 @@ public class JobService {
         User recruiter = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("recruiter not found"));
 
+        if (recruiter.getRole() != Role.RECRUITER) {
+            throw new RuntimeException("Only recruiters can manage their jobs");
+        }
         if(!existingJob.getRecruiter().getId().equals(recruiter.getId())){
             throw new RuntimeException("you can update only your jobs");
         }
@@ -74,6 +82,9 @@ public class JobService {
 
         User recruiter=userRepository.findByEmail(email).orElseThrow(()->new RuntimeException("recruiter not found"));
 
+        if (recruiter.getRole() != Role.RECRUITER) {
+            throw new RuntimeException("Only recruiters can manage their jobs");
+        }
         if(!existingJob.getRecruiter().getId().equals(recruiter.getId())){
             throw new RuntimeException("you can only delete your jobs");
         }

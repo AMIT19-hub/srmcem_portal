@@ -1,15 +1,14 @@
 package com.example.srmcemportal.service;
 
-import com.example.srmcemportal.entity.Application;
-import com.example.srmcemportal.entity.ApplicationStatus;
-import com.example.srmcemportal.entity.Job;
-import com.example.srmcemportal.entity.User;
+import com.example.srmcemportal.entity.*;
 import com.example.srmcemportal.repository.ApplicationRepository;
 import com.example.srmcemportal.repository.JobRepository;
 import com.example.srmcemportal.repository.UserRepository;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -20,27 +19,41 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final JobRepository jobRepository;
+    private final StudentService studentService;
+    private final FileStorageService fileStorageService;
 
-    public ApplicationService(ApplicationRepository applicationRepository, UserRepository userRepository, JobRepository jobRepository) {
+    public ApplicationService(ApplicationRepository applicationRepository,
+                              UserRepository userRepository, JobRepository jobRepository,
+                              StudentService studentService,
+                              FileStorageService fileStorageService) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.jobRepository = jobRepository;
+        this.studentService = studentService;
+        this.fileStorageService = fileStorageService;
     }
 
     public Application applyForJob(Long jobId, String email) {
 
         User student = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("student not found"));
+                .orElseThrow(() -> new RuntimeException("Student not found"));
 
+        if (student.getRole() != Role.STUDENT) {
+            throw new RuntimeException("Only students can apply for jobs");
+        }
 
-        Job job = jobRepository.findById(jobId).orElseThrow(() -> new RuntimeException("job not found"));
+        // Check whether the student has completed their profile
+        studentService.validateProfileCompletion(student);
+
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job not found"));
 
         if (job.getLastDate().isBefore(LocalDate.now())) {
             throw new RuntimeException("Application deadline has passed");
         }
 
         if (applicationRepository.existsByStudentAndJob(student, job)) {
-            throw new RuntimeException("you have already applied for this job");
+            throw new RuntimeException("You have already applied for this job");
         }
 
         Application application = new Application();
@@ -48,13 +61,18 @@ public class ApplicationService {
         application.setJob(job);
         application.setAppliedAt(LocalDateTime.now());
         application.setStatus(ApplicationStatus.APPLIED);
+
         return applicationRepository.save(application);
     }
 
     public List<Application> getMyApplications(String email) {
 
-        User student = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("student not found"));
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("student not found"));
 
+        if (student.getRole() != Role.STUDENT) {
+            throw new RuntimeException("Only students can view their applications");
+        }
         return applicationRepository.findByStudent(student);
     }
 
@@ -62,6 +80,9 @@ public class ApplicationService {
         User recruiter = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("recruiter not found"));
 
+        if (recruiter.getRole() != Role.RECRUITER) {
+            throw new RuntimeException("Only recruiters can view applicants");
+        }
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new RuntimeException("job not found"));
 
         if (!job.getRecruiter().getId().equals(recruiter.getId())) {
@@ -69,15 +90,19 @@ public class ApplicationService {
         }
         return applicationRepository.findByJob(job);
     }
+
     @Transactional
-    public Application updateStatus(Long applicationId,ApplicationStatus status, String email){
+    public Application updateStatus(Long applicationId, ApplicationStatus status, String email) {
 
-        User recruiter=userRepository.findByEmail(email).orElseThrow(()->new RuntimeException("recruiter not found"));
+        User recruiter = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("recruiter not found"));
 
-        Application application= applicationRepository.findById(applicationId)
-                .orElseThrow(()->new RuntimeException("application not found"));
+        if (recruiter.getRole() != Role.RECRUITER) {
+            throw new RuntimeException("Only recruiters can update application status");
+        }
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new RuntimeException("application not found"));
 
-        Job job=application.getJob();
+        Job job = application.getJob();
         if (!job.getRecruiter().getId()
                 .equals(recruiter.getId())) {
 
@@ -89,18 +114,21 @@ public class ApplicationService {
         return application;
     }
 
-    public List<Application> getAllApplications(){
+    public List<Application> getAllApplications() {
         return applicationRepository.findAll();
     }
 
-    public void withdrawApplication(Long applicationId,String email){
-        Application application=applicationRepository.findById(applicationId)
-                .orElseThrow(()->new RuntimeException("Application not found"));
+    public void withdrawApplication(Long applicationId, String email) {
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new RuntimeException("Application not found"));
 
-        User student=userRepository.findByEmail(email)
-                .orElseThrow(()->new RuntimeException("student not found"));
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("student not found"));
+        if (student.getRole() != Role.STUDENT) {
+            throw new RuntimeException("Only students can withdraw applications");
+        }
 
-        if(!application.getStudent().getId().equals(student.getId())){
+        if (!application.getStudent().getId().equals(student.getId())) {
             throw new RuntimeException("you can withdraw only your application");
         }
 
@@ -113,6 +141,9 @@ public class ApplicationService {
                 .orElseThrow(() ->
                         new RuntimeException("Recruiter not found"));
 
+        if (recruiter.getRole() != Role.RECRUITER) {
+            throw new RuntimeException("Only recruiters can view their job applications");
+        }
         List<Job> jobs = jobRepository.findByRecruiter(recruiter);
 
         List<Application> applications = new ArrayList<>();
@@ -124,5 +155,26 @@ public class ApplicationService {
         }
 
         return applications;
+    }
+
+    public Resource downloadApplicantResume(Long applicationId, String email)
+            throws IOException {
+
+        User recruiter = userRepository.findByEmail(email)
+                .filter(user -> user.getRole() == Role.RECRUITER)
+                .orElseThrow(() -> new RuntimeException("Recruiter not found"));
+
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new RuntimeException("Application not found"));
+
+        if (!application.getJob().getRecruiter().getId()
+                .equals(recruiter.getId())) {
+            throw new RuntimeException(
+                    "You can access resumes only for your own job applicants");
+        }
+
+        String resumePath = application.getStudent().getResumePath();
+
+        return fileStorageService.loadResume(resumePath);
     }
 }

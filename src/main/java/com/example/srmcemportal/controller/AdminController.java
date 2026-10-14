@@ -2,6 +2,7 @@ package com.example.srmcemportal.controller;
 
 import com.example.srmcemportal.entity.Application;
 import com.example.srmcemportal.entity.Job;
+import com.example.srmcemportal.entity.Role;
 import com.example.srmcemportal.entity.User;
 import com.example.srmcemportal.repository.ApplicationRepository;
 import com.example.srmcemportal.repository.JobRepository;
@@ -55,5 +56,61 @@ public class AdminController {
         applicationRepository.deleteByJob(job);
         jobRepository.delete(job);
         return "Job deleted successfully";
+    }
+
+    @PutMapping("/users/{userId}/deactivate")
+    public String deactivateUser(@PathVariable Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() == Role.ADMIN) {
+            throw new RuntimeException("Admin account cannot be deactivated here");
+        }
+
+        user.setActive(false);
+        userRepository.save(user);
+
+        return "User deactivated successfully";
+    }
+
+    @PutMapping("/users/{userId}/activate")
+    public String activateUser(@PathVariable Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() == Role.ADMIN) {
+            throw new RuntimeException("Admin account cannot be activated here");
+        }
+
+        user.setActive(true);
+        userRepository.save(user);
+
+        return "User activated successfully";
+    }
+
+    @GetMapping("/students/{userId}")
+    public User getStudentProfile(@PathVariable Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Student not found"));
+
+        if (user.getRole() != Role.STUDENT) {
+            throw new RuntimeException("User is not a student");
+        }
+
+        return user;
+    }
+
+    @GetMapping("/recruiters/{userId}")
+    public User getRecruiterProfile(@PathVariable Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Recruiter not found"));
+
+        if (user.getRole() != Role.RECRUITER) {
+            throw new RuntimeException("User is not a recruiter");
+        }
+
+        return user;
     }
 }

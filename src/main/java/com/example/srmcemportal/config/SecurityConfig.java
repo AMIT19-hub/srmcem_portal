@@ -71,7 +71,8 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/auth/register",
-                                        "/auth/login")
+                                        "/auth/login", "/auth/verify-otp",
+                                        "/auth/forgot-password","/auth/reset-password")
                                 .permitAll()
                                 .requestMatchers("/student").hasRole("STUDENT")
                                 .requestMatchers("/recruiter").hasRole("RECRUITER")

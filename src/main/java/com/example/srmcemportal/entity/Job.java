@@ -2,6 +2,7 @@ package com.example.srmcemportal.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -30,7 +31,7 @@ public class Job {
     private String eligibility;
     @NotBlank
     private String skills;
-    @NotBlank
+    @NotNull
     private LocalDate lastDate;
 
     @ManyToOne

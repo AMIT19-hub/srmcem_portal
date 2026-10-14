@@ -17,5 +17,7 @@ public interface ApplicationRepository extends JpaRepository<Application,Long> {
     List<Application> findByJob(Job job);
     void deleteByJob(Job job);
 
+    boolean existsByIdAndJob_Recruiter_Id(Long applicationId, Long recruiterId);
+
 
 }
